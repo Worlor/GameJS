@@ -38,7 +38,7 @@ var GF = function () {
         y: 10,
         width: 50,
         height: 50,
-        speed: 100 // pixels/s this time !
+        speed: 350 // pixels/s this time !
     };
 
     // obstacles
@@ -141,7 +141,7 @@ var GF = function () {
             movePlayer(player.x, player.y);
 
             // Check inputs and move the player
-            updateMonsterPosition(delta);
+            updatePlayerPosition(delta);
 
             // update and draw balls
             //updateBalls(delta);
@@ -226,22 +226,16 @@ var GF = function () {
         ctx.fillText("Time: " + (currentLevelTime / 1000).toFixed(1), 300, 60);
         ctx.restore();
     }
-    function updateMonsterPosition(delta) {
-        player.speedX = player.speedY = 0;
+    function updatePlayerPosition(delta) {
+        player.speedX = 0;
         // check inputStates
         if (inputStates.left) {
             player.speedX = -player.speed;
         }
-        if (inputStates.up) {
-            player.speedY = -player.speed;
-        }
         if (inputStates.right) {
             player.speedX = player.speed;
         }
-        if (inputStates.down) {
-            player.speedY = player.speed;
-        }
-        if (inputStates.space) {
+        /*if (inputStates.space) {
         }
         if (inputStates.mousePos) {
         }
@@ -250,10 +244,10 @@ var GF = function () {
         } else {
             // mouse up
             player.speed = 100;
-        }
+        }*/
 
         // collision avec obstacles
-        for(var i=0; i < obstacles.length; i++) {
+        /*for(var i=0; i < obstacles.length; i++) {
             var o = obstacles[i];
             if(rectsOverlap(o.x, o.y, o.w, o.h,
                     player.x, player.y, player.width, player.height)) {
@@ -262,11 +256,20 @@ var GF = function () {
                 //player.y = 10;
                 player.speed = 30;
             }
-        }
+        }*/
         // Compute the incX and inY in pixels depending
         // on the time elasped since last redraw
         player.x += calcDistanceToMove(delta, player.speedX);
-        player.y += calcDistanceToMove(delta, player.speedY);
+
+        //Empeche le joueur de sortir de l'écran
+        if(player.x < 0)
+        {
+            player.x = 0;
+        }
+        if(player.x > ( w - player.width))
+        {
+            player.x = w - player.width;
+        }
     }
 
 
@@ -446,6 +449,9 @@ var GF = function () {
         canvas.addEventListener('mouseup', function (evt) {
             inputStates.mousedown = false;
         }, false);
+
+        player.x = (w / 2) - (player.width / 2)
+        player.y = h - player.height;
 
         creerObstacles();
 
