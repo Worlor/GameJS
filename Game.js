@@ -181,9 +181,22 @@ var GF = function () {
         for (var i =0; i < obstacles.length; i++) {
             var obstacle = obstacles[i];
             obstacle.move(delta);
-            testCollisionObstacleMur(obstacle, canvas);
+            testObstacleSortie(obstacle,canvas);
+            //testCollisionObstacleMur(obstacle, canvas);
             obstacle.draw();
         }
+    }
+
+    function testObstacleSortie(obstacle, canvas)
+    {
+        if(obstacle.launch == false) {
+            return false;
+        }
+
+        if(obstacle.y > canvas.height) {
+            return true;
+        }
+
     }
 
     function testCollisionObstacleMur(obstacle, canvas) {
@@ -285,47 +298,6 @@ var GF = function () {
                         // overlap and the rectangles intersect
     }
 
-    // Collisions between rectangle and circle
-    function circRectsOverlap(x0, y0, w0, h0, cx, cy, r) {
-        var testX = cx;
-        var testY = cy;
-
-        if (testX < x0)
-            testX = x0;
-        if (testX > (x0 + w0))
-            testX = (x0 + w0);
-        if (testY < y0)
-            testY = y0;
-        if (testY > (y0 + h0))
-            testY = (y0 + h0);
-
-        return (((cx - testX) * (cx - testX) + (cy - testY) * (cy - testY)) < r * r);
-    }
-
-
-    function testCollisionWithWalls(ball) {
-        // left
-        if (ball.x < ball.radius) {
-            ball.x = ball.radius;
-            ball.angle = -ball.angle + Math.PI;
-        }
-        // right
-        if (ball.x > w - (ball.radius)) {
-            ball.x = w - (ball.radius);
-            ball.angle = -ball.angle + Math.PI;
-        }
-        // up
-        if (ball.y < ball.radius) {
-            ball.y = ball.radius;
-            ball.angle = -ball.angle;
-        }
-        // down
-        if (ball.y > h - (ball.radius)) {
-            ball.y = h - (ball.radius);
-            ball.angle = -ball.angle;
-        }
-    }
-
     function getMousePos(evt) {
         // necessary to take into account CSS boudaries
         var rect = canvas.getBoundingClientRect();
@@ -336,16 +308,15 @@ var GF = function () {
     }
 
     function creerObstacles() {
-        var obstacle1 = new Obstacle(100, 0, 20, 200, 0, 100);
+        var obstacle1 = creerObstacle(Math.floor((Math.random() * w) + 1) );
         obstacles.push(obstacle1);
-
-        var obstacle2 = new Obstacle(200, 200, 20, 200, 0, 0);
-        obstacles.push(obstacle2);
-
-        var obstacle3 = new Obstacle(300, 0, 20, 200, 0, 0);
-        obstacles.push(obstacle3);
-
     }
+
+    function creerObstacle(x) {
+        var obstacle = new Obstacle(x, -1, 20, 200, 0, 150);
+        return obstacle;
+    }
+
 // constructor function for balls
     function Obstacle(x, y, w, h, sx, sy) {
         this.x = x;
@@ -355,6 +326,7 @@ var GF = function () {
         this.speedX = sx;
         this.speedY = sy;
         this.color = 'black';
+        this.launch = false;
 
         this.draw = function () {
             ctx.save();
