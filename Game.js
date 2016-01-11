@@ -31,12 +31,10 @@ var GF = function () {
     var currentLevel = 1;
     var TIME_BETWEEN_LEVELS = 0;
     var currentLevelTime = TIME_BETWEEN_LEVELS;
-    var plopSound; // Sound of a ball exploding
 
-    // The monster !
-    var monster = {
+    var player = {
         dead: false,
-        x: 350,
+        x: 10,
         y: 10,
         width: 50,
         height: 50,
@@ -45,10 +43,6 @@ var GF = function () {
 
     // obstacles
     var obstacles = [];
-
-    // array of balls to animate
-    var ballArray = [];
-    var nbBalls = 5;
 
     // We want the object to move at speed pixels/s (there are 60 frames in a second)
     // If we are really running at 60 frames/s, the delay between frames should be 1/60
@@ -87,9 +81,9 @@ var GF = function () {
         ctx.clearRect(0, 0, w, h);
     }
 
-    // Functions for drawing the monster and maybe other objects
-    function drawMyMonster(x, y) {
-        // draw a big monster !
+    // Functions for drawing the player and maybe other objects
+    function movePlayer(x, y) {
+        // draw a big player !
         // head
 
         // save the context
@@ -99,7 +93,7 @@ var GF = function () {
         ctx.translate(x, y);
         ctx.scale(0.5, 0.5);
 
-        // (0, 0) is the top left corner of the monster.
+        // (0, 0) is the top left corner of the player.
         ctx.strokeRect(0, 0, 100, 100);
 
         // eyes
@@ -136,47 +130,47 @@ var GF = function () {
         // Clear the canvas
         clearCanvas();
 
-        if (monster.dead) {
+        if (player.dead) {
             currentGameState = gameStates.gameOver;
         }
 
         switch (currentGameState) {
-            case gameStates.gameRunning:
+        case gameStates.gameRunning:
 
-                // draw the monster
-                drawMyMonster(monster.x, monster.y);
+            // draw the player
+            movePlayer(player.x, player.y);
 
-                // Check inputs and move the monster
-                updateMonsterPosition(delta);
+            // Check inputs and move the player
+            updateMonsterPosition(delta);
 
-                // update and draw balls
-                //updateBalls(delta);
-                updateObstacles(delta);
+            // update and draw balls
+            //updateBalls(delta);
+            updateObstacles(delta);
 
-                // display Score
-                displayScore();
+            // display Score
+            displayScore();
 
-                // decrease currentLevelTime.
-                // When < 0 go to next level
-                currentLevelTime += delta;
+            // decrease currentLevelTime.
+            // When < 0 go to next level
+            currentLevelTime += delta;
 
-                /* if (currentLevelTime < 0) {
-                 goToNextLevel();
-                 }*/
+            /* if (currentLevelTime < 0) {
+             goToNextLevel();
+             }*/
 
-                break;
-            case gameStates.mainMenu:
-                // TO DO !
-                break;
-            case gameStates.gameOver:
-                ctx.fillText("GAME OVER", 50, 100);
-                ctx.fillText("Press SPACE to start again", 50, 150);
-                ctx.fillText("Move with arrow keys", 50, 200);
-                ctx.fillText("Survive 5 seconds for next level", 50, 250);
-                if (inputStates.space) {
-                    startNewGame();
-                }
-                break;
+            break;
+        case gameStates.mainMenu:
+            // TO DO !
+            break;
+        case gameStates.gameOver:
+            ctx.fillText("GAME OVER", 50, 100);
+            ctx.fillText("Press SPACE to start again", 50, 150);
+            ctx.fillText("Move with arrow keys", 50, 200);
+            ctx.fillText("Survive 5 seconds for next level", 50, 250);
+            if (inputStates.space) {
+                this.startNewGame();
+            }
+            break;
         }
 
         // call the animation loop every 1/60th of second
@@ -184,7 +178,7 @@ var GF = function () {
     };
 
     function updateObstacles(delta) {
-        for(var i =0; i < obstacles.length; i++) {
+        for (var i =0; i < obstacles.length; i++) {
             var obstacle = obstacles[i];
             obstacle.move(delta);
             testCollisionObstacleMur(obstacle, canvas);
@@ -212,11 +206,9 @@ var GF = function () {
     }
 
     function startNewGame() {
-        monster.dead = false;
+        player.dead = false;
         currentLevelTime = 5000;
         currentLevel = 1;
-        nbBalls = 5;
-        createBalls(nbBalls);
         currentGameState = gameStates.gameRunning;
     }
 
@@ -225,9 +217,6 @@ var GF = function () {
         // 5 seconds in this example
         currentLevelTime = 5000;
         currentLevel++;
-        // Add two balls per level
-        nbBalls += 2;
-        createBalls(nbBalls);
     }
 
     function displayScore() {
@@ -235,82 +224,52 @@ var GF = function () {
         ctx.fillStyle = 'Green';
         ctx.fillText("Level: " + currentLevel, 300, 30);
         ctx.fillText("Time: " + (currentLevelTime / 1000).toFixed(1), 300, 60);
-        ctx.fillText("Balls: " + nbBalls, 300, 90);
         ctx.restore();
     }
     function updateMonsterPosition(delta) {
-        monster.speedX = monster.speedY = 0;
+        player.speedX = player.speedY = 0;
         // check inputStates
         if (inputStates.left) {
-            monster.speedX = -monster.speed;
+            player.speedX = -player.speed;
         }
         if (inputStates.up) {
-            monster.speedY = -monster.speed;
+            player.speedY = -player.speed;
         }
         if (inputStates.right) {
-            monster.speedX = monster.speed;
+            player.speedX = player.speed;
         }
         if (inputStates.down) {
-            monster.speedY = monster.speed;
+            player.speedY = player.speed;
         }
         if (inputStates.space) {
         }
         if (inputStates.mousePos) {
         }
         if (inputStates.mousedown) {
-            monster.speed = 500;
+            player.speed = 500;
         } else {
             // mouse up
-            monster.speed = 100;
+            player.speed = 100;
         }
 
         // collision avec obstacles
         for(var i=0; i < obstacles.length; i++) {
             var o = obstacles[i];
             if(rectsOverlap(o.x, o.y, o.w, o.h,
-                    monster.x, monster.y, monster.width, monster.height)) {
+                    player.x, player.y, player.width, player.height)) {
                 console.log("collision");
-                //monster.x = 10;
-                //monster.y = 10;
-                monster.speed = 30;
+                //player.x = 10;
+                //player.y = 10;
+                player.speed = 30;
             }
         }
         // Compute the incX and inY in pixels depending
         // on the time elasped since last redraw
-        monster.x += calcDistanceToMove(delta, monster.speedX);
-        monster.y += calcDistanceToMove(delta, monster.speedY);
+        player.x += calcDistanceToMove(delta, player.speedX);
+        player.y += calcDistanceToMove(delta, player.speedY);
     }
 
 
-
-    function updateBalls(delta) {
-        // Move and draw each ball, test collisions,
-        for (var i = 0; i < ballArray.length; i++) {
-            var ball = ballArray[i];
-
-            // 1) move the ball
-            ball.move();
-
-            // 2) test if the ball collides with a wall
-            testCollisionWithWalls(ball);
-
-            // Test if the monster collides
-            if (circRectsOverlap(monster.x, monster.y,
-                    monster.width, monster.height,
-                    ball.x, ball.y, ball.radius)) {
-
-                //change the color of the ball
-                ball.color = 'red';
-                monster.dead = true;
-                // Here, a sound effect greatly improves
-                // the experience!
-                //plopSound.play();
-            }
-
-            // 3) draw the ball
-            ball.draw();
-        }
-    }
 
     // Collisions between aligned rectangles
     function rectsOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
@@ -370,64 +329,6 @@ var GF = function () {
         return {
             x: evt.clientX - rect.left,
             y: evt.clientY - rect.top
-        };
-    }
-
-    function createBalls(numberOfBalls) {
-        // Start from an empty array
-        ballArray = [];
-
-        for (var i = 0; i < numberOfBalls; i++) {
-            // Create a ball with random position and speed.
-            // You can change the radius
-            var ball = new Ball(w * Math.random(),
-                h * Math.random(),
-                (2 * Math.PI) * Math.random(),
-                (80 * Math.random()),
-                30);
-
-            // Do not create a ball on the player. We augmented the ball radius
-            // to sure the ball is created far from the monster.
-            if (!circRectsOverlap(monster.x, monster.y,
-                    monster.width, monster.height,
-                    ball.x, ball.y, ball.radius * 3)) {
-                // Add it to the array
-                ballArray[i] = ball;
-            } else {
-                i--;
-            }
-
-
-        }
-    }
-// constructor function for balls
-    function Ball(x, y, angle, v, diameter) {
-        this.x = x;
-        this.y = y;
-        this.angle = angle;
-        this.v = v;
-        this.radius = diameter / 2;
-        this.color = 'black';
-
-        this.draw = function () {
-            ctx.save();
-            ctx.beginPath();
-            ctx.fillStyle = this.color;
-            ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.restore();
-            this.color = 'black';
-        };
-
-        this.move = function () {
-            // add horizontal increment to the x pos
-            // add vertical increment to the y pos
-
-            var incX = this.v * Math.cos(this.angle);
-            var incY = this.v * Math.sin(this.angle);
-
-            this.x += calcDistanceToMove(delta, incX);
-            this.y += calcDistanceToMove(delta, incY);
         };
     }
 
@@ -545,9 +446,6 @@ var GF = function () {
         canvas.addEventListener('mouseup', function (evt) {
             inputStates.mousedown = false;
         }, false);
-
-        // We create tge balls: try to change the parameter
-        createBalls(nbBalls);
 
         creerObstacles();
 
