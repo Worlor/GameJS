@@ -125,8 +125,10 @@ var GF = function () {
         for (var i =0; i < obstacles.length; i++) {
             var obstacle = obstacles[i];
             obstacle.move(delta);
-            testObstacleSortie(obstacle,canvas);
-            //testCollisionObstacleMur(obstacle, canvas);
+            if(obstacle.isOutOfScreen())
+            {
+                obstacle.reset();
+            }
             obstacle.draw();
         }
     }
@@ -210,6 +212,7 @@ var GF = function () {
     function Piste(x,y) {
         this.x = x;
         this.y = y;
+        this.initialX = x;
         this.w = 30;
         this.h = 21;
         this.speed = 100;
@@ -231,6 +234,11 @@ var GF = function () {
                 return true;
             }
             return false;
+        }
+
+        this.reset = function(y) {
+            this.x = this.initialX;
+            this.y = 0;
         }
 
     }
