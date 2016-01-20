@@ -8,8 +8,10 @@ window.onload = function init() {
 // GAME FRAMEWORK STARTS HERE
 var GF = function () {
     // Vars relative to the canvas
-    var canvas, ctx, w, h;
+    var canvas, ctx, winW, winH;
 
+    var playerImage;
+    var ennemiImage;
     // vars for counting frames/s, used by the measureFPS function
     var frameCount = 0;
     var lastTime;
@@ -38,11 +40,15 @@ var GF = function () {
         y: 10,
         width: 50,
         height: 50,
-        speed: 350 // pixels/s this time !
+        speed: 100
     };
 
-    // obstacles
-    var obstacles = [];
+    //lasers
+    var laserTotal = 2, lasers = [];
+
+    // Ennemis
+    var totalEnnemis = 5;
+    var ennemis = [];
 
     // We want the object to move at speed pixels/s (there are 60 frames in a second)
     // If we are really running at 60 frames/s, the delay between frames should be 1/60
@@ -56,17 +62,10 @@ var GF = function () {
     // Player logic
     function movePlayer(x, y) {
         // draw a big player !
-        // head
-
         // save the context
         ctx.save();
 
-        // translate the coordinate system, draw relative to it
-        ctx.translate(x, y);
-        ctx.scale(0.5, 0.5);
-
-        // (0, 0) is the top left corner of the player.
-        ctx.strokeRect(0, 0, 100, 100);
+        ctx.drawImage(playerImage,x,y,winW / 10, winH / 10);
 
         // restore the context
         ctx.restore();
@@ -74,28 +73,36 @@ var GF = function () {
 
     function updatePlayerPosition(delta) {
         player.speedX = 0;
+        player.speedY = 0;
         // check inputStates
         if (inputStates.left) {
             player.speedX = -player.speed;
         }
-        if (inputStates.right) {
+        else if (inputStates.right) {
             player.speedX = player.speed;
         }
-        /*if (inputStates.space) {
-         }
-         if (inputStates.mousePos) {
-         }
-         if (inputStates.mousedown) {
-         player.speed = 500;
-         } else {
-         // mouse up
-         player.speed = 100;
-         }*/
+        if (inputStates.down) {
+            player.speedY = player.speed;
+        }
+        else if (inputStates.up) {
+            player.speedY = -player.speed;
+        }
+        if (inputStates.space && lasers.length <= laserTotal) {
+            lasers.push(new Laser(player.x + 25, player.y - 20));
+        }
+        /*if (inputStates.mousePos) {
+        }
+        if (inputStates.mousedown) {
+        player.speed = 500;
+        } else {
+        // mouse up
+        player.speed = 100;
+        }*/
 
         // collision avec obstacles
         /*for(var i=0; i < obstacles.length; i++) {
          var o = obstacles[i];
-         if(rectsOverlap(o.x, o.y, o.w, o.h,
+         if(rectsOverlap(o.x, o.y, o.winW, o.winH,
          player.x, player.y, player.width, player.height)) {
          console.log("collision");
          //player.x = 10;
@@ -106,141 +113,120 @@ var GF = function () {
         // Compute the incX and inY in pixels depending
         // on the time elasped since last redraw
         player.x += calcDistanceToMove(delta, player.speedX);
+        player.y += calcDistanceToMove(delta, player.speedY);
 
         //Empeche le joueur de sortir de l'écran
         if(player.x < 0)
         {
             player.x = 0;
         }
-        if(player.x > ( w - player.width))
+        if(player.x > ( winW - player.width))
         {
-            player.x = w - player.width;
+            player.x = winW - player.width;
+        }
+        if(player.y < 0)
+        {
+            player.y =0;
+        }
+        if((player.y + player.height) > winH)
+        {
+            player.y = winH - player.height;
         }
     }
 
+    //Lasers logique
+    function Laser(x,y) {
+        this.x = x;
+        this.y = y;
+        this.w = 4;
+        this.h = 20;
+        this.speed = 10;
 
-    //Objects logic
+        this.draw = function() {
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(this.x,this.y,this.w,this.h);
+        };
 
-    function updateObstacles(delta) {
-        for (var i =0; i < obstacles.length; i++) {
-            var obstacle = obstacles[i];
-            obstacle.move(delta);
-            if(obstacle.isOutOfScreen())
-            {
-                obstacle.reset();
+        this.move = function (delta, laserIndex) {
+            if(this.y > -11) {
+                this.y -= this.speed;
             }
-            obstacle.draw();
+            else if (this.y < -10) {
+                lasers.splice(laserIndex, 1);
+            }
+        };
+
+        this.hitTest = function (laserIndex){
+            for(var i = 0; i < ennemis.length; i++) {
+                ennemi = ennemis[i];
+                if(
+                    this.y <= (ennemi.y + ennemi.h) &&//Check hauteur
+                    this.y >= ennemi.y &&
+                    this.x >= ennemi.x &&
+                    this.x <= (ennemi.x + ennemi.w) &&
+                    this.y ) {
+                    console.log("touché "+ennemi.x+" / "+ennemi.y+" / "+this.x+" / "+this.y);
+                    lasers.splice(laserIndex, 1);
+                    ennemis.splice(i,1);
+                }
+
+            }
+        };
+    }
+
+    function updateLasers(delta) {
+        for (var i =0; i < lasers.length; i++) {
+            var laser = lasers[i];
+            laser.move(delta,i);
+            laser.hitTest(i);
+            laser.draw();
         }
     }
 
-    function testCollisionObstacleMur(obstacle, canvas) {
-        if((obstacle.y + obstacle.h) > canvas.height) {
-            obstacle.y = canvas.height-obstacle.h;
-            obstacle.speedY = - obstacle.speedY;
-        }
-        if(obstacle.y < 0 )  {
-            obstacle.y = 0;
-            obstacle.speedY = - obstacle.speedY;
-        }
-        if((obstacle.x + obstacle.w) > canvas.width) {
-            obstacle.x = canvas.width -obstacle.w;
-            obstacle.speedX = - obstacle.speedX;
-        }
-        if(obstacle.x < 0) {
-            obstacle.x = 0;
-            obstacle.speedX = - obstacle.speedX;
-        }
-    }
 
-
-    // Collisions between aligned rectangles
-    function rectsOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
-
-        if ((x1 > (x2 + w2)) || ((x1 + w1) < x2))
-            return false; // No horizontal axis projection overlap
-        if ((y1 > (y2 + h2)) || ((y1 + h1) < y2))
-            return false; // No vertical axis projection overlap
-        return true;    // If previous tests failed, then both axis projections
-                        // overlap and the rectangles intersect
-    }
-
-    function creerObstacles() {
-        var obstacle1 = creerObstacle(Math.floor((Math.random() * w) + 1) );
-        obstacles.push(obstacle1);
-    }
-
-    function creerObstacle(x) {
-        var obstacle = new Obstacle(x, -1, 20, 200, 0, 150);
-        return obstacle;
-    }
-
-    function Obstacle(x, y, w, h, sx, sy) {
+    //Ennemis logique
+    function Ennemi(x, y, w, h, speed) {
         this.x = x;
         this.y = y;
         this.w = w;
         this.h = h;
-        this.speedX = sx;
-        this.speedY = sy;
-        this.color = 'black';
-        this.launch = false;
+        this.speed = speed;
 
         this.draw = function () {
             ctx.save();
-            ctx.fillRect(this.x, this.y, this.w, this.h);
+            ctx.drawImage(ennemiImage,this.x,this.y,this.w, this.h);
             ctx.restore();
-            this.color = 'black';
         };
 
 
         this.move = function (delta) {
-            // add horizontal increment to the x pos
-            // add vertical increment to the y pos
-
-            this.x += calcDistanceToMove(delta, this.speedX);
-            this.y += calcDistanceToMove(delta, this.speedY);
-        };
-    }
-
-    function creerPiste() {
-        for(var i = 0; i < h; i = i + 20) {
-            pisteG = new Piste(50, i);
-            pisteD = new Piste(300, i);
-            obstacles.push(pisteG, pisteD);
-        }
-    }
-
-    function Piste(x,y) {
-        this.x = x;
-        this.y = y;
-        this.initialX = x;
-        this.w = 30;
-        this.h = 21;
-        this.speed = 100;
-
-        this.draw = function () {
-            ctx.save();
-            ctx.fillStyle="#FF0000";
-            ctx.fillRect(this.x, this.y, this.w, this.h / 2);
-            ctx.fillStyle="#FFFFFF";
-            ctx.fillRect(this.x, this.y + (this.h / 2), this.w, this.h / 2);
-        };
-
-        this.move = function (delta) {
-            this.y += calcDistanceToMove(delta, this.speed);
-        };
-
-        this.isOutOfScreen = function() {
-            if((this.y + this.h) > h ) {
-                return true;
+            if(this.y < winH) {
+                this.y += calcDistanceToMove(delta, this.w / 2);
+            } else if (this.y > winH - 1) {
+                this.y = -this.w;
             }
-            return false;
-        }
+        };
+    }
 
-        this.reset = function(y) {
-            this.x = this.initialX;
-            this.y = 0;
+    function createEnnemis()
+    {
+        eX = winW/ 12;
+        eY = - (winH / 12);
+        eW = winW / 12;
+        eH = winH / 12;
+        eS = 20;
+        for(var i = 0; i < totalEnnemis; i++) {
+            ennemis.push(new Ennemi(eX,eY,eW,eH,eS));
+            eX += eW + (winW / 10);
         }
+    }
 
+    function updateEnnemis(delta) {
+        for (var i =0; i < ennemis.length; i++) {
+            var ennemi = ennemis[i];
+            ennemi.move(delta);
+            ennemi.draw();
+        }
     }
     // Game logic
     var measureFPS = function (newTime) {
@@ -268,14 +254,13 @@ var GF = function () {
 
     // clears the canvas content
     function clearCanvas() {
-        ctx.clearRect(0, 0, w, h);
+        ctx.clearRect(0,0, winW, winH);
     }
 
     function timer(currentTime) {
         var delta = currentTime - oldTime;
         oldTime = currentTime;
         return delta;
-
     }
     function getMousePos(evt) {
         // necessary to take into account CSS boudaries
@@ -308,9 +293,11 @@ var GF = function () {
                 // Check inputs and move the player
                 updatePlayerPosition(delta);
 
-                // update and draw balls
-                //updateBalls(delta);
-                updateObstacles(delta);
+                //Deplacement des ennemis
+                updateEnnemis(delta);
+
+                //Deplacement des lasers
+                updateLasers(delta);
 
                 // display Score
                 displayScore();
@@ -390,10 +377,14 @@ var GF = function () {
 
         // Canvas, context etc.
         canvas = document.querySelector("#myCanvas");
+        playerImage = new Image();
+        playerImage.src = 'graphics/player.png';
+        ennemiImage = new Image();
+        ennemiImage.src = 'graphics/ennemi.png';
 
         // often useful
-        w = canvas.width;
-        h = canvas.height;
+        winW = canvas.width;
+        winH = canvas.height;
 
         // important, we will draw with this object
         ctx = canvas.getContext('2d');
@@ -444,11 +435,14 @@ var GF = function () {
             inputStates.mousedown = false;
         }, false);
 
-        player.x = (w / 2) - (player.width / 2)
-        player.y = h - player.height;
+        player.x = (winW / 2) - (player.width / 2);
+        player.y = winH - player.height;
+
+        // Créer ennemis
+        createEnnemis();
 
         //creerObstacles();
-        creerPiste();
+        //creerPiste();
 
         // all assets (images, sounds) loaded, we can start the animation
         requestAnimationFrame(mainLoop);
