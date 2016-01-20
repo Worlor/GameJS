@@ -1,6 +1,7 @@
 // Inits
 window.onload = function init() {
-    var game = new GF();
+    var game;
+    game = new GF();
     game.start();
 };
 
@@ -8,10 +9,14 @@ window.onload = function init() {
 // GAME FRAMEWORK STARTS HERE
 var GF = function () {
     // Vars relative to the canvas
+    var player;
     var canvas, ctx, winW, winH;
+    var score = 0;
 
     var playerImage;
     var ennemiImage;
+    var fond;
+
     // vars for counting frames/s, used by the measureFPS function
     var frameCount = 0;
     var lastTime;
@@ -34,21 +39,21 @@ var GF = function () {
     var TIME_BETWEEN_LEVELS = 0;
     var currentLevelTime = TIME_BETWEEN_LEVELS;
 
-    var player = {
+    player = {
         dead: false,
         x: 10,
         y: 10,
         width: 50,
         height: 50,
-        speed: 100
+        speed: 100,
+        retardLaser: 0
     };
 
-    //lasers
-    var laserTotal = 2, lasers = [];
+    // Lasers
+    var laserTotal = 2, lasers = [], vitesseLasers = 800;
 
     // Ennemis
-    var totalEnnemis = 5;
-    var ennemis = [];
+    var totalEnnemis = 5,ennemis = [],vitesseEnnemis = 30;
 
     // We want the object to move at speed pixels/s (there are 60 frames in a second)
     // If we are really running at 60 frames/s, the delay between frames should be 1/60
@@ -65,30 +70,51 @@ var GF = function () {
         // save the context
         ctx.save();
 
-        ctx.drawImage(playerImage,x,y,winW / 10, winH / 10);
+        ctx.drawImage(playerImage, x, y, winW / 10, winH / 10);
 
         // restore the context
         ctx.restore();
     }
 
+    function testPlayerCollision() {
+        var playerXW = player.x + player.width;
+        var playerYH = player.y + player.height;
+        for (var i = 0; i < ennemis.length; i++)
+        {
+            var ennemi = ennemis[i];
+            if(player.x > ennemi.x && player.x < ennemi.x + ennemi.w && player.y > ennemi.y && player.y < ennemi.y + ennemi.h) {
+                player.dead = true;
+            }
+            if(playerXW < ennemi.x + ennemi.w && playerXW > ennemi.x && player.y > ennemi.y && player.y < ennemi.y + ennemi.h) {
+                player.dead = true;
+            }
+            if(playerYH > ennemi.y && playerYH < ennemi.y + ennemi.h && player.x > ennemi.x && player.x < ennemi.x + ennemi.w) {
+                player.dead = true;
+            }
+            if(playerYH > ennemi.y && playerYH < ennemi.y + ennemi.h && playerXW < ennemi.x + ennemi.w && playerXW > ennemi.x) {
+                player.dead = true;
+            }
+        }
+    }
+
     function updatePlayerPosition(delta) {
         player.speedX = 0;
         player.speedY = 0;
+
         // check inputStates
         if (inputStates.left) {
             player.speedX = -player.speed;
-        }
-        else if (inputStates.right) {
+        } else if (inputStates.right) {
             player.speedX = player.speed;
         }
         if (inputStates.down) {
             player.speedY = player.speed;
-        }
-        else if (inputStates.up) {
+        } else if (inputStates.up) {
             player.speedY = -player.speed;
         }
-        if (inputStates.space && lasers.length <= laserTotal) {
-            lasers.push(new Laser(player.x + 25, player.y - 20));
+        if (inputStates.space && lasers.length <= laserTotal && window.performance.now() > player.retardLaser)  {
+                lasers.push(new Laser(player.x + 25, player.y - 20));
+                player.retardLaser = window.performance.now() + 300;
         }
         /*if (inputStates.mousePos) {
         }
@@ -116,40 +142,36 @@ var GF = function () {
         player.y += calcDistanceToMove(delta, player.speedY);
 
         //Empeche le joueur de sortir de l'écran
-        if(player.x < 0)
-        {
+        if(player.x < 0) {
             player.x = 0;
         }
-        if(player.x > ( winW - player.width))
-        {
+        if(player.x > (winW - player.width)) {
             player.x = winW - player.width;
         }
-        if(player.y < 0)
-        {
+        if(player.y < 0) {
             player.y =0;
         }
-        if((player.y + player.height) > winH)
-        {
+        if((player.y + player.height) > winH) {
             player.y = winH - player.height;
         }
     }
 
     //Lasers logique
-    function Laser(x,y) {
+    function Laser(x, y) {
         this.x = x;
         this.y = y;
         this.w = 4;
         this.h = 20;
-        this.speed = 10;
+        this.speed = vitesseLasers;
 
-        this.draw = function() {
+        this.draw = function () {
             ctx.fillStyle = '#f00';
-            ctx.fillRect(this.x,this.y,this.w,this.h);
+            ctx.fillRect(this.x, this.y, this.w, this.h);
         };
 
-        this.move = function (delta, laserIndex) {
+        this.move = function(delta, laserIndex) {
             if(this.y > -11) {
-                this.y -= this.speed;
+                this.y -= calcDistanceToMove(delta, this.speed);
             }
             else if (this.y < -10) {
                 lasers.splice(laserIndex, 1);
@@ -157,17 +179,18 @@ var GF = function () {
         };
 
         this.hitTest = function (laserIndex){
-            for(var i = 0; i < ennemis.length; i++) {
-                ennemi = ennemis[i];
+            for (var i = 0; i < ennemis.length; i++) {
+                var ennemi = ennemis[i];
                 if(
-                    this.y <= (ennemi.y + ennemi.h) &&//Check hauteur
+                    this.y <= (ennemi.y + ennemi.h + 5) &&//Check hauteur + petit hack
                     this.y >= ennemi.y &&
                     this.x >= ennemi.x &&
                     this.x <= (ennemi.x + ennemi.w) &&
                     this.y ) {
-                    console.log("touché "+ennemi.x+" / "+ennemi.y+" / "+this.x+" / "+this.y);
                     lasers.splice(laserIndex, 1);
                     ennemis.splice(i,1);
+                    score += 10;
+                    return ;
                 }
 
             }
@@ -185,12 +208,12 @@ var GF = function () {
 
 
     //Ennemis logique
-    function Ennemi(x, y, w, h, speed) {
+    function Ennemi(x, y, w, h) {
         this.x = x;
         this.y = y;
         this.w = w;
         this.h = h;
-        this.speed = speed;
+        this.speed = vitesseEnnemis;
 
         this.draw = function () {
             ctx.save();
@@ -201,23 +224,26 @@ var GF = function () {
 
         this.move = function (delta) {
             if(this.y < winH) {
-                this.y += calcDistanceToMove(delta, this.w / 2);
+                this.y += calcDistanceToMove(delta, this.speed);
             } else if (this.y > winH - 1) {
                 this.y = -this.w;
             }
         };
     }
 
-    function createEnnemis()
+    function createEnnemis(nombre)
     {
         eX = winW/ 12;
         eY = - (winH / 12);
         eW = winW / 12;
         eH = winH / 12;
-        eS = 20;
-        for(var i = 0; i < totalEnnemis; i++) {
-            ennemis.push(new Ennemi(eX,eY,eW,eH,eS));
+        for(var i = 0; i < nombre; i++) {
+            ennemis.push(new Ennemi(eX,eY,eW,eH));
             eX += eW + (winW / 10);
+            if((i+1)%5 == 0) {//Tous les 5 ennemis, on ajoute un rang
+                eY -= (winH / 6);
+                eX = winW / 12;
+            }
         }
     }
 
@@ -228,6 +254,30 @@ var GF = function () {
             ennemi.draw();
         }
     }
+
+    // Fond logique
+    function Fond() {
+        this.image = new Image();
+        this.image.src = 'graphics/background.png';
+        this.x = 0;
+        this.y = 0;
+        this.y2 = - winH;
+
+        this.drawFond = function() {
+            ctx.drawImage(this.image, this.x, this.y, winW, winH);
+            ctx.drawImage(this.image, this.x, this.y2, winW, winH);
+            if(this.y > winH) {
+                this.y = -winH + 1;
+            }
+            if(this.y2 > winH) {
+                this.y2 = -winH + 1;
+            }
+            this.y++;
+            this.y2++;
+        }
+    }
+
+
     // Game logic
     var measureFPS = function (newTime) {
 
@@ -284,11 +334,26 @@ var GF = function () {
             currentGameState = gameStates.gameOver;
         }
 
+        if (ennemis.length < 1)
+        {
+            currentGameState = gameStates.nextLevel;
+        }
+
         switch (currentGameState) {
+            case gameStates.nextLevel:
+                goToNextLevel();
+                currentGameState = gameStates.gameRunning;
+
             case gameStates.gameRunning:
+
+                // dessine le fond
+                fond.drawFond();
 
                 // draw the player
                 movePlayer(player.x, player.y);
+
+                // Verifie si le joueur est touché
+                testPlayerCollision();
 
                 // Check inputs and move the player
                 updatePlayerPosition(delta);
@@ -301,6 +366,8 @@ var GF = function () {
 
                 // display Score
                 displayScore();
+
+
 
                 // decrease currentLevelTime.
                 // When < 0 go to next level
@@ -315,12 +382,14 @@ var GF = function () {
                 // TO DO !
                 break;
             case gameStates.gameOver:
+                ctx.font = 'bold 18px Inconsolata';
                 ctx.fillText("GAME OVER", 50, 100);
-                ctx.fillText("Press SPACE to start again", 50, 150);
-                ctx.fillText("Move with arrow keys", 50, 200);
-                ctx.fillText("Survive 5 seconds for next level", 50, 250);
+                ctx.fillText("Score : " + score, 50, 150);
+                ctx.fillText("Appuyer sur espace pour relancer", 50, 200);
+                ctx.fillText("Déplacer vous avec les flêches, espace pour tirer", 50, 250);
+                ctx.fillText("Tuer tout le monde et échappez vous pour le niveau suivant !", 50, 300);
                 if (inputStates.space) {
-                    this.startNewGame();
+                    startNewGame();
                 }
                 break;
         }
@@ -331,8 +400,9 @@ var GF = function () {
 
     function startNewGame() {
         player.dead = false;
-        currentLevelTime = 5000;
         currentLevel = 1;
+        score = 0;
+        initialisation();
         currentGameState = gameStates.gameRunning;
     }
 
@@ -341,13 +411,15 @@ var GF = function () {
         // 5 seconds in this example
         currentLevelTime = 5000;
         currentLevel++;
+        createEnnemis(totalEnnemis * currentLevel);
     }
 
     function displayScore() {
         ctx.save();
-        ctx.fillStyle = 'Green';
-        ctx.fillText("Level: " + currentLevel, 300, 30);
-        ctx.fillText("Time: " + (currentLevelTime / 1000).toFixed(1), 300, 60);
+        ctx.fillStyle = 'Red';
+        ctx.font = 'bold 20px Inconsolata';
+        ctx.fillText("Niveau: " + currentLevel, winW - 120, 30);
+        ctx.fillText("Score: " + score, winW - 120, 60);
         ctx.restore();
     }
 
@@ -369,6 +441,19 @@ var GF = function () {
         });
     }
 
+    function initialisation()
+    {
+        //initialisation joueur
+        player.x = (winW / 2) - (player.width / 2);
+        player.y = winH - player.height;
+        player.retardLaser = window.performance.now() + 200;
+
+
+        // Créer ennemis
+        ennemis = [];
+        createEnnemis(totalEnnemis)
+    }
+
 
     var start = function () {
         // adds a div for displaying the fps value
@@ -377,14 +462,13 @@ var GF = function () {
 
         // Canvas, context etc.
         canvas = document.querySelector("#myCanvas");
+        winW = canvas.width;
+        winH = canvas.height;
         playerImage = new Image();
         playerImage.src = 'graphics/player.png';
         ennemiImage = new Image();
         ennemiImage.src = 'graphics/ennemi.png';
-
-        // often useful
-        winW = canvas.width;
-        winH = canvas.height;
+        fond = new Fond();
 
         // important, we will draw with this object
         ctx = canvas.getContext('2d');
@@ -434,16 +518,7 @@ var GF = function () {
         canvas.addEventListener('mouseup', function (evt) {
             inputStates.mousedown = false;
         }, false);
-
-        player.x = (winW / 2) - (player.width / 2);
-        player.y = winH - player.height;
-
-        // Créer ennemis
-        createEnnemis();
-
-        //creerObstacles();
-        //creerPiste();
-
+        initialisation();
         // all assets (images, sounds) loaded, we can start the animation
         requestAnimationFrame(mainLoop);
 
