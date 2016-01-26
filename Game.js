@@ -17,6 +17,7 @@ var GF = function () {
     var playerImage;
     var ennemiImage;
     var fond;
+    var portail;
 
     // vars for counting frames/s, used by the measureFPS function
     var frameCount = 0;
@@ -33,8 +34,15 @@ var GF = function () {
     var gameStates = {
         mainMenu: 0,
         gameRunning: 1,
-        gameOver: 2
+        gameOver: 2,
+        nextLevel : 3,
     };
+    var ennemiStates = {
+        down: 0,
+        up: 1,
+        right: 2,
+        left: 3,
+    }
     var currentGameState = gameStates.gameRunning;
     var currentLevel = 1;
     var TIME_BETWEEN_LEVELS = 0;
@@ -54,7 +62,7 @@ var GF = function () {
     var laserTotal = 2, lasers = [], vitesseLasers = 800;
 
     // Ennemis
-    var totalEnnemis = 5,ennemis = [],vitesseEnnemis = 30;
+    var totalEnnemis = 3,ennemis = [],vitesseEnnemis = 60;
 
     // We want the object to move at speed pixels/s (there are 60 frames in a second)
     // If we are really running at 60 frames/s, the delay between frames should be 1/60
@@ -200,6 +208,8 @@ var GF = function () {
         this.h = h;
         this.lives = lives;
         this.speed = vitesseEnnemis;
+        this.state = ennemiStates.down;
+        this.initialX = x;
 
         this.draw = function () {
             ctx.save();
@@ -209,11 +219,48 @@ var GF = function () {
 
 
         this.move = function (delta) {
-            if(this.y < winH) {
+            switch((currentLevel - 1) % 5)
+            {
+                case 4:
+                case 3:
+                case 2:
+                case 1:
+                case 0:
+                    if(this.state == ennemiStates.down) {
+                        if (this.y < ((winH / 2) - winH / 8)) {
+                            this.y += calcDistanceToMove(delta, this.speed)
+                        } else {
+                            this.state = ennemiStates.right;
+                        }
+                    }
+                    else if(this.state == ennemiStates.right) {
+                        this.x += calcDistanceToMove(delta, this.speed);
+                        if(this.x >= (this.initialX + this.w) ) {
+                            this.state = ennemiStates.left;
+                        }
+                    }
+                    else if(this.state == ennemiStates.left)
+                    {
+                        this.x -= calcDistanceToMove(delta, this.speed);
+                        if(this.x <= (this.initialX - this.w)) {
+                            this.state = ennemiStates.right;
+                        }
+                    }
+                    break;
+                /*case 1:
+                    break;
+                case 2:
+                    break;
+                case 3:
+                    break;
+                case 4:
+                    break;*/
+            }
+            /*if(this.y < winH) {
                 this.y += calcDistanceToMove(delta, this.speed);
             } else if (this.y > winH - 1) {
                 this.y = -this.w;
-            }
+            }*/
         };
     }
 
@@ -223,10 +270,15 @@ var GF = function () {
         eY = - (winH / 12);
         eW = winW / 12;
         eH = winH / 12;
-        console.log("live + "+Math.floor(currentLevel/5));
         for(var i = 0; i < nombre; i++) {
-            ennemis.push(new Ennemi(eX,eY,eW,eH, 1 + Math.floor(currentLevel/5)));
-            eX += eW + (winW / 10);
+            ennemis.push(new Ennemi(eX,eY,eW,eH, 1 + Math.floor((currentLevel - 1)/5))); //ajout d'une vie tout les 5 niveaux
+            if(nombre > 5 && i < (nombre - (nombre % 5))) {
+                eX += eW + (winW / 10);
+            }
+            else
+            {
+                eX += ((winW - eX) / (nombre - i)) + eW;
+            }
             if((i+1)%5 == 0) {//Tous les 5 ennemis, on ajoute un rang
                 eY -= (winH / 6);
                 eX = winW / 12;
@@ -240,6 +292,37 @@ var GF = function () {
             ennemi.move(delta);
             ennemi.draw();
         }
+    }
+
+    //Portail logique
+
+    function Portail() {
+        this.image = new Image();
+        this.image.src = 'graphics/portail.png';
+        this.w = winW / 8;
+        this.h = winW / 8;
+        this.x = (winW / 2) - (this.w / 2);
+        this.y = winH / 12;
+
+        this.draw = function() {
+            ctx.drawImage(this.image, this.x, this.y, this.w, this.h);
+        };
+        this.testCollision = function() {
+            var playerXW = player.x + player.width;
+            var playerYH = player.y + player.height;
+            if(player.x > this.x && player.x < this.x + this.w && player.y > this.y && player.y < this.y + this.h) {
+                levelFinish();
+            }
+            if(playerXW < this.x + this.w && playerXW > this.x && player.y > this.y && player.y < this.y + this.h) {
+                levelFinish();
+            }
+            if(playerYH > this.y && playerYH < this.y + this.h && player.x > this.x && player.x < this.x + this.w) {
+                levelFinish();
+            }
+            if(playerYH > this.y && playerYH < this.y + this.h && playerXW < this.x + this.w && playerXW > this.x) {
+                levelFinish();
+            }
+        };
     }
 
     // Fond logique
@@ -321,26 +404,14 @@ var GF = function () {
             currentGameState = gameStates.gameOver;
         }
 
-        if (ennemis.length < 1 && currentGameState != gameStates.nextLevel) {
-            scoreTime = window.performance.now() + 2000;
-            currentGameState = gameStates.nextLevel;
-        }
-
         switch (currentGameState) {
             case gameStates.nextLevel:
                 // dessine le fond
                 fond.drawFond();
 
-                // draw the player
+                // rest du joueur
                 player.x = (winW / 2) - (player.width / 2);
                 player.y =  winH - player.height;
-                movePlayer(player.x, player.y);
-
-                // Verifie si le joueur est touché
-                testPlayerCollision();
-
-                // Check inputs and move the player
-                updatePlayerPosition(delta);
 
                 displayFinLevel();
 
@@ -372,6 +443,11 @@ var GF = function () {
                 // display Score
                 displayScore();
 
+                if (ennemis.length < 1 && currentGameState != gameStates.nextLevel) {
+                    portail.draw();
+                    portail.testCollision();
+                }
+
 
 
                 // decrease currentLevelTime.
@@ -382,9 +458,6 @@ var GF = function () {
                     currentGameState = gameStates.gameOver;
                  }
 
-                break;
-            case gameStates.mainMenu:
-                // TO DO !
                 break;
             case gameStates.gameOver:
                 ctx.font = 'bold 18px Inconsolata';
@@ -412,6 +485,11 @@ var GF = function () {
         currentGameState = gameStates.gameRunning;
     }
 
+    function levelFinish() {
+        scoreTime = window.performance.now() + 2000;
+        currentGameState = gameStates.nextLevel;
+    }
+
     function goToNextLevel() {
         // reset time available for next level
         // 5 seconds in this example
@@ -420,7 +498,7 @@ var GF = function () {
         score = 0;
         currentLevelTime = 30000 + (currentLevel * 2000);
         currentLevel++;
-        createEnnemis(totalEnnemis * currentLevel);
+        createEnnemis(totalEnnemis * (((currentLevel - 1) % 5) + 1));
     }
 
     function displayScore() {
@@ -477,7 +555,6 @@ var GF = function () {
 
         currentLevelTime = 30000;
 
-
         // Créer ennemis
         ennemis = [];
         createEnnemis(totalEnnemis)
@@ -498,6 +575,7 @@ var GF = function () {
         ennemiImage = new Image();
         ennemiImage.src = 'graphics/ennemi.png';
         fond = new Fond();
+        portail = new Portail();
 
         player.speed = ((winW + winH) / 2 ) / 5;
         player.height = winH / 12;
@@ -507,6 +585,12 @@ var GF = function () {
         ctx = canvas.getContext('2d');
         // default police for text
         ctx.font = "20px Arial";
+        if(winW < 500 || winH < 500) {
+            var alertDiv = document.createElement('div');
+            document.body.appendChild(alertDiv);
+            alertDiv.innerHTML = "La résolution du jeu doit être de 500px minimum de chaque côté";
+            return;
+        }
 
         //add the listener to the main, window object, and update the states
         window.addEventListener('keydown', function (event) {
