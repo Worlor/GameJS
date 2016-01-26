@@ -448,10 +448,6 @@ var GF = function () {
                     portail.testCollision();
                 }
 
-
-
-                // decrease currentLevelTime.
-                // When < 0 go to next level
                 currentLevelTime -= delta;
 
                  if (currentLevelTime < 0) {
