@@ -12,6 +12,7 @@ var GF = function () {
     var player;
     var canvas, ctx, winW, winH;
     var score = 0;
+    var totalScore = 0;
 
     var playerImage;
     var ennemiImage;
@@ -334,16 +335,32 @@ var GF = function () {
             currentGameState = gameStates.gameOver;
         }
 
-        if (ennemis.length < 1)
-        {
+        if (ennemis.length < 1 && currentGameState != gameStates.nextLevel) {
+            scoreTime = window.performance.now() + 2000;
             currentGameState = gameStates.nextLevel;
         }
 
         switch (currentGameState) {
             case gameStates.nextLevel:
-                goToNextLevel();
-                currentGameState = gameStates.gameRunning;
+                // dessine le fond
+                fond.drawFond();
 
+                // draw the player
+                movePlayer(player.x, player.y);
+
+                // Verifie si le joueur est touché
+                testPlayerCollision();
+
+                // Check inputs and move the player
+                updatePlayerPosition(delta);
+
+                displayFinLevel();
+
+                if(window.performance.now() > scoreTime) {
+                    goToNextLevel();
+                    currentGameState = gameStates.gameRunning;
+                }
+                break;
             case gameStates.gameRunning:
 
                 // dessine le fond
@@ -371,7 +388,7 @@ var GF = function () {
 
                 // decrease currentLevelTime.
                 // When < 0 go to next level
-                currentLevelTime += delta;
+                currentLevelTime -= delta;
 
                 /* if (currentLevelTime < 0) {
                  goToNextLevel();
@@ -402,6 +419,7 @@ var GF = function () {
         player.dead = false;
         currentLevel = 1;
         score = 0;
+        totalScore = 0;
         initialisation();
         currentGameState = gameStates.gameRunning;
     }
@@ -409,7 +427,10 @@ var GF = function () {
     function goToNextLevel() {
         // reset time available for next level
         // 5 seconds in this example
-        currentLevelTime = 5000;
+        lasers = [];
+        totalScore += score + Math.round(currentLevelTime / 1000) * 1000;
+        score = 0;
+        currentLevelTime = 30000;
         currentLevel++;
         createEnnemis(totalEnnemis * currentLevel);
     }
@@ -420,6 +441,24 @@ var GF = function () {
         ctx.font = 'bold 20px Inconsolata';
         ctx.fillText("Niveau: " + currentLevel, winW - 120, 30);
         ctx.fillText("Score: " + score, winW - 120, 60);
+        ctx.fillText("Temps : " + Math.round(currentLevelTime / 1000), winW - 120, 90);
+        ctx.restore();
+    }
+
+    function displayFinLevel() {
+        ctx.save();
+        ctx.fillStyle = "Green";
+        ctx.font = 'bold 40px Inconsolata';
+        ctx.fillText("Niveau " + currentLevel + " terminé !",
+            winW - (winW * 0.8), winH - (winH * 0.7));
+        ctx.font = '20px Inconsolata';
+        var total = score + Math.round(currentLevelTime / 1000) * 1000;
+        ctx.fillText("Score du niveau : "+score,
+            winW - (winW * 0.8), winH - (winH * 0.5));
+        ctx.fillText("Bonus temps restant : "+Math.round(currentLevelTime / 1000)+ " x 1000 = "+Math.round(currentLevelTime /1000)*1000,
+            winW - (winW * 0.8), winH - (winH * 0.4) );
+        ctx.fillText("Score total : "+totalScore+" + "+ total + " = " + (totalScore+total),
+            winW - (winW * 0.8), winH - (winH * 0.3));
         ctx.restore();
     }
 
@@ -447,6 +486,8 @@ var GF = function () {
         player.x = (winW / 2) - (player.width / 2);
         player.y = winH - player.height;
         player.retardLaser = window.performance.now() + 200;
+
+        currentLevelTime = 30000;
 
 
         // Créer ennemis
