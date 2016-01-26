@@ -46,7 +46,7 @@ var GF = function () {
         y: 10,
         width: 50,
         height: 50,
-        speed: 100,
+        speed: 0,
         retardLaser: 0
     };
 
@@ -103,42 +103,23 @@ var GF = function () {
         player.speedY = 0;
 
         // check inputStates
-        if (inputStates.left) {
-            player.speedX = -player.speed;
-        } else if (inputStates.right) {
-            player.speedX = player.speed;
-        }
-        if (inputStates.down) {
-            player.speedY = player.speed;
-        } else if (inputStates.up) {
-            player.speedY = -player.speed;
-        }
-        if (inputStates.space && lasers.length <= laserTotal && window.performance.now() > player.retardLaser)  {
-                lasers.push(new Laser(player.x + 25, player.y - 20));
+        if(currentGameState != gameStates.nextLevel) {
+            if (inputStates.left) {
+                player.speedX = -player.speed;
+            } else if (inputStates.right) {
+                player.speedX = player.speed;
+            }
+            if (inputStates.down) {
+                player.speedY = player.speed;
+            } else if (inputStates.up) {
+                player.speedY = -player.speed;
+            }
+            if (inputStates.space && lasers.length <= laserTotal && window.performance.now() > player.retardLaser) {
+                lasers.push(new Laser(player.x + 5 + (player.width / 2), player.y - 20));
                 player.retardLaser = window.performance.now() + 300;
+            }
         }
-        /*if (inputStates.mousePos) {
-        }
-        if (inputStates.mousedown) {
-        player.speed = 500;
-        } else {
-        // mouse up
-        player.speed = 100;
-        }*/
 
-        // collision avec obstacles
-        /*for(var i=0; i < obstacles.length; i++) {
-         var o = obstacles[i];
-         if(rectsOverlap(o.x, o.y, o.winW, o.winH,
-         player.x, player.y, player.width, player.height)) {
-         console.log("collision");
-         //player.x = 10;
-         //player.y = 10;
-         player.speed = 30;
-         }
-         }*/
-        // Compute the incX and inY in pixels depending
-        // on the time elasped since last redraw
         player.x += calcDistanceToMove(delta, player.speedX);
         player.y += calcDistanceToMove(delta, player.speedY);
 
@@ -161,8 +142,8 @@ var GF = function () {
     function Laser(x, y) {
         this.x = x;
         this.y = y;
-        this.w = 4;
-        this.h = 20;
+        this.w = winW / 150;
+        this.h = winH / 30;
         this.speed = vitesseLasers;
 
         this.draw = function () {
@@ -188,9 +169,12 @@ var GF = function () {
                     this.x >= ennemi.x &&
                     this.x <= (ennemi.x + ennemi.w) &&
                     this.y ) {
+                    ennemi.lives--;
+                    if(ennemi.lives <= 0) {
+                        ennemis.splice(i, 1);
+                        score += 10;
+                    }
                     lasers.splice(laserIndex, 1);
-                    ennemis.splice(i,1);
-                    score += 10;
                     return ;
                 }
 
@@ -209,11 +193,12 @@ var GF = function () {
 
 
     //Ennemis logique
-    function Ennemi(x, y, w, h) {
+    function Ennemi(x, y, w, h, lives) {
         this.x = x;
         this.y = y;
         this.w = w;
         this.h = h;
+        this.lives = lives;
         this.speed = vitesseEnnemis;
 
         this.draw = function () {
@@ -238,8 +223,9 @@ var GF = function () {
         eY = - (winH / 12);
         eW = winW / 12;
         eH = winH / 12;
+        console.log("live + "+Math.floor(currentLevel/5));
         for(var i = 0; i < nombre; i++) {
-            ennemis.push(new Ennemi(eX,eY,eW,eH));
+            ennemis.push(new Ennemi(eX,eY,eW,eH, 1 + Math.floor(currentLevel/5)));
             eX += eW + (winW / 10);
             if((i+1)%5 == 0) {//Tous les 5 ennemis, on ajoute un rang
                 eY -= (winH / 6);
@@ -346,6 +332,8 @@ var GF = function () {
                 fond.drawFond();
 
                 // draw the player
+                player.x = (winW / 2) - (player.width / 2);
+                player.y =  winH - player.height;
                 movePlayer(player.x, player.y);
 
                 // Verifie si le joueur est touché
@@ -390,9 +378,9 @@ var GF = function () {
                 // When < 0 go to next level
                 currentLevelTime -= delta;
 
-                /* if (currentLevelTime < 0) {
-                 goToNextLevel();
-                 }*/
+                 if (currentLevelTime < 0) {
+                    currentGameState = gameStates.gameOver;
+                 }
 
                 break;
             case gameStates.mainMenu:
@@ -401,7 +389,7 @@ var GF = function () {
             case gameStates.gameOver:
                 ctx.font = 'bold 18px Inconsolata';
                 ctx.fillText("GAME OVER", 50, 100);
-                ctx.fillText("Score : " + score, 50, 150);
+                ctx.fillText("Score : " + (totalScore + score), 50, 150);
                 ctx.fillText("Appuyer sur espace pour relancer", 50, 200);
                 ctx.fillText("Déplacer vous avec les flêches, espace pour tirer", 50, 250);
                 ctx.fillText("Tuer tout le monde et échappez vous pour le niveau suivant !", 50, 300);
@@ -430,7 +418,7 @@ var GF = function () {
         lasers = [];
         totalScore += score + Math.round(currentLevelTime / 1000) * 1000;
         score = 0;
-        currentLevelTime = 30000;
+        currentLevelTime = 30000 + (currentLevel * 2000);
         currentLevel++;
         createEnnemis(totalEnnemis * currentLevel);
     }
@@ -510,6 +498,10 @@ var GF = function () {
         ennemiImage = new Image();
         ennemiImage.src = 'graphics/ennemi.png';
         fond = new Fond();
+
+        player.speed = ((winW + winH) / 2 ) / 5;
+        player.height = winH / 12;
+        player.width = winW / 12;
 
         // important, we will draw with this object
         ctx = canvas.getContext('2d');
