@@ -39,10 +39,10 @@ var GF = function () {
     };
     var ennemiStates = {
         down: 0,
-        up: 1,
-        right: 2,
-        left: 3,
+        right: 1,
+        left: 2,
     }
+    var ennemiState = ennemiStates.down;
     var currentGameState = gameStates.gameRunning;
     var currentLevel = 1;
     var TIME_BETWEEN_LEVELS = 0;
@@ -62,7 +62,7 @@ var GF = function () {
     var laserTotal = 2, lasers = [], vitesseLasers = 800;
 
     // Ennemis
-    var totalEnnemis = 3,ennemis = [],vitesseEnnemis = 60;
+    var totalEnnemis = 5,ennemis = [],vitesseEnnemis = 60;
 
     // We want the object to move at speed pixels/s (there are 60 frames in a second)
     // If we are really running at 60 frames/s, the delay between frames should be 1/60
@@ -179,6 +179,10 @@ var GF = function () {
                     this.y ) {
                     ennemi.lives--;
                     if(ennemi.lives <= 0) {
+                        if(ennemi.master == true && ennemis.length > 1){
+                            ennemis[i+1].master = true;
+                            ennemis[i+1].plot = ennemi.plot;
+                        }
                         ennemis.splice(i, 1);
                         score += 10;
                     }
@@ -201,15 +205,16 @@ var GF = function () {
 
 
     //Ennemis logique
-    function Ennemi(x, y, w, h, lives) {
+    function Ennemi(x, y, w, h, lives, master) {
         this.x = x;
         this.y = y;
         this.w = w;
         this.h = h;
         this.lives = lives;
         this.speed = vitesseEnnemis;
-        this.state = ennemiStates.down;
         this.initialX = x;
+        this.plot = 1;
+        this.master = master;
 
         this.draw = function () {
             ctx.save();
@@ -219,48 +224,54 @@ var GF = function () {
 
 
         this.move = function (delta) {
-            switch((currentLevel - 1) % 5)
-            {
-                case 4:
-                case 3:
-                case 2:
-                case 1:
-                case 0:
-                    if(this.state == ennemiStates.down) {
-                        if (this.y < ((winH / 2) - winH / 8)) {
+            if(this.master == true) {
+                switch(ennemiState) {
+                    case ennemiStates.down :
+                        if (this.y < (this.plot * (winH / 6))) {
                             this.y += calcDistanceToMove(delta, this.speed)
+                        } else if (this.plot % 2 == 1){
+                            this.plot++;
+                            ennemiState = ennemiStates.right;
                         } else {
-                            this.state = ennemiStates.right;
+                            this.plot++;
+                            ennemiState = ennemiStates.left;
                         }
-                    }
-                    else if(this.state == ennemiStates.right) {
+                        break;
+                    case ennemiStates.right :
                         this.x += calcDistanceToMove(delta, this.speed);
-                        if(this.x >= (this.initialX + this.w) ) {
-                            this.state = ennemiStates.left;
+                        if (this.x >= (this.initialX + this.w)) {
+                            ennemiState = ennemiStates.down;
                         }
-                    }
-                    else if(this.state == ennemiStates.left)
-                    {
+                        break;
+                    case ennemiStates.left :
                         this.x -= calcDistanceToMove(delta, this.speed);
-                        if(this.x <= (this.initialX - this.w)) {
-                            this.state = ennemiStates.right;
+                        if (this.x <= (this.initialX - this.w)) {
+                            ennemiState = ennemiStates.down;
                         }
-                    }
-                    break;
-                /*case 1:
-                    break;
-                case 2:
-                    break;
-                case 3:
-                    break;
-                case 4:
-                    break;*/
+                        break;
+                }
+            } else {
+                switch(ennemiState) {
+                    case ennemiStates.down :
+                        this.y += calcDistanceToMove(delta, this.speed)
+                        break;
+                    case ennemiStates.right :
+                        this.x += calcDistanceToMove(delta, this.speed);
+                        break;
+                    case ennemiStates.left :
+                        this.x -= calcDistanceToMove(delta, this.speed);
+                        break;
+                }
             }
-            /*if(this.y < winH) {
-                this.y += calcDistanceToMove(delta, this.speed);
-            } else if (this.y > winH - 1) {
+
+            if (this.y > winH - 1) {
                 this.y = -this.w;
-            }*/
+                this.plot = 1;
+                if(this.master == true){
+                    ennemiState = ennemiStates.down;
+                }
+
+            }
         };
     }
 
@@ -270,19 +281,15 @@ var GF = function () {
         eY = - (winH / 12);
         eW = winW / 12;
         eH = winH / 12;
+        var e = new Ennemi(eX,eY,eW,eH, 1 + Math.floor((currentLevel - 1)/5), true); //ajout d'une vie tout les 5 niveaux
         for(var i = 0; i < nombre; i++) {
-            ennemis.push(new Ennemi(eX,eY,eW,eH, 1 + Math.floor((currentLevel - 1)/5))); //ajout d'une vie tout les 5 niveaux
-            if(nombre > 5 && i < (nombre - (nombre % 5))) {
-                eX += eW + (winW / 10);
-            }
-            else
-            {
-                eX += ((winW - eX) / (nombre - i)) + eW;
-            }
+            ennemis.push(e);
+            eX += eW + (winW / 10);
             if((i+1)%5 == 0) {//Tous les 5 ennemis, on ajoute un rang
                 eY -= (winH / 6);
                 eX = winW / 12;
             }
+            e = new Ennemi(eX,eY,eW,eH, 1 + Math.floor((currentLevel - 1)/5), false);
         }
     }
 
@@ -457,11 +464,11 @@ var GF = function () {
                 break;
             case gameStates.gameOver:
                 ctx.font = 'bold 18px Inconsolata';
-                ctx.fillText("GAME OVER", 50, 100);
-                ctx.fillText("Score : " + (totalScore + score), 50, 150);
-                ctx.fillText("Appuyer sur espace pour relancer", 50, 200);
-                ctx.fillText("Déplacer vous avec les flêches, espace pour tirer", 50, 250);
-                ctx.fillText("Tuer tout le monde et échappez vous pour le niveau suivant !", 50, 300);
+                ctx.fillText("GAME OVER",20, 100);
+                ctx.fillText("Score : " + (totalScore + score), 20, 150);
+                ctx.fillText("Appuyer sur espace pour relancer", 20, 200);
+                ctx.fillText("Déplacer vous avec les flêches, espace pour tirer", 20, 250);
+                ctx.fillText("Tuer tout le monde et échappez vous pour le niveau suivant !", 20, 300);
                 if (inputStates.space) {
                     startNewGame();
                 }
@@ -490,7 +497,7 @@ var GF = function () {
         // reset time available for next level
         // 5 seconds in this example
         lasers = [];
-        totalScore += score + Math.round(currentLevelTime / 1000) * 1000;
+        totalScore += score + Math.round(currentLevelTime / 1000) * 10;
         score = 0;
         currentLevelTime = 30000 + (currentLevel * 2000);
         currentLevel++;
@@ -514,32 +521,14 @@ var GF = function () {
         ctx.fillText("Niveau " + currentLevel + " terminé !",
             winW - (winW * 0.8), winH - (winH * 0.7));
         ctx.font = '20px Inconsolata';
-        var total = score + Math.round(currentLevelTime / 1000) * 1000;
+        var total = score + Math.round(currentLevelTime / 1000) * 10;
         ctx.fillText("Score du niveau : "+score,
             winW - (winW * 0.8), winH - (winH * 0.5));
-        ctx.fillText("Bonus temps restant : "+Math.round(currentLevelTime / 1000)+ " x 1000 = "+Math.round(currentLevelTime /1000)*1000,
+        ctx.fillText("Bonus temps restant : "+Math.round(currentLevelTime / 1000)+ " x 10 = "+Math.round(currentLevelTime /1000)*10,
             winW - (winW * 0.8), winH - (winH * 0.4) );
         ctx.fillText("Score total : "+totalScore+" + "+ total + " = " + (totalScore+total),
             winW - (winW * 0.8), winH - (winH * 0.3));
         ctx.restore();
-    }
-
-    function loadAssets(callback) {
-        // here we should load the souds, the sprite sheets etc.
-        // then at the end call the callback function
-
-        // simple example that loads a sound and then calls the callback. We used the howler.js WebAudio lib here.
-        // Load sounds asynchronously using howler.js
-        plopSound = new Howl({
-            urls: ['http://mainline.i3s.unice.fr/mooc/plop.mp3'],
-            autoplay: false,
-            volume: 1,
-            onload: function () {
-                console.log("all sounds loaded");
-                // We're done!
-                callback();
-            }
-        });
     }
 
     function initialisation()
